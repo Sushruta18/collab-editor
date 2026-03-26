@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CollabEdit</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg:#1e1e2e; --bg2:#313244; --bg3:#181825; --bgwrap:#13131e;
+    --border:#45475a; --text:#cdd6f4; --muted:#a6adc8; --faint:#585b70;
+    --accent:#cba6f7; --accent2:#b4befe; --green:#a6e3a1; --red:#f38ba8;
+    --orange:#fab387; --page:#24273a; --pageshadow:0 4px 24px rgba(0,0,0,0.5);
+  }
+  :root[data-theme="light"] {
+    --bg:#eff1f5; --bg2:#dce0e8; --bg3:#ccd0da; --bgwrap:#c8cdd8;
+    --border:#bcc0cc; --text:#4c4f69; --muted:#6c6f85; --faint:#9ca0b0;
+    --accent:#8839ef; --accent2:#7287fd; --green:#40a02b; --red:#d20f39;
+    --orange:#fe640b; --page:#ffffff; --pageshadow:0 2px 16px rgba(0,0,0,0.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;}
+
+  /* login */
+  #login-screen{display:flex;align-items:center;justify-content:center;flex:1;}
+  .login-box{background:var(--bg2);border-radius:12px;padding:40px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.3);border:1px solid var(--border);}
+  .login-box h1{font-size:1.6rem;margin-bottom:6px;color:var(--accent);}
+  .login-box p{font-size:0.85rem;color:var(--muted);margin-bottom:24px;}
+  .login-box input{width:100%;padding:10px 14px;margin-bottom:14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:1rem;}
+  .login-box input:focus{outline:none;border-color:var(--accent);}
+  .login-box button{width:100%;padding:11px;border-radius:8px;border:none;background:var(--accent);color:var(--bg);font-size:1rem;font-weight:700;cursor:pointer;}
+  .login-box button:hover{background:var(--accent2);}
+  #login-error{color:var(--red);font-size:0.85rem;margin-top:10px;min-height:18px;}
+  .login-hint{margin-top:14px;font-size:0.75rem;color:var(--faint);}
+
+  /* shell */
+  #editor-shell{display:none;flex-direction:column;flex:1;overflow:hidden;}
+
+  /* toolbar */
+  #toolbar{background:var(--bg2);padding:6px 12px;display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .tb-btn{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer;font-size:0.85rem;transition:background 0.15s;}
+  .tb-btn:hover{background:var(--border);}
+  .tb-btn.active{background:var(--accent);color:var(--bg);border-color:var(--accent);}
+  .tb-sep{width:1px;height:22px;background:var(--border);margin:0 3px;}
+  select.tb-btn{padding:4px 8px;}
+  #lock-btn.locked{background:var(--red);color:var(--bg);border-color:var(--red);}
+  #lock-btn.locked-other{background:var(--orange);color:var(--bg);border-color:var(--orange);}
+  #save-status{font-size:0.78rem;margin-left:auto;}
+
+  /* main */
+  #main-area{display:flex;flex:1;overflow:hidden;}
+  #editor-wrap{flex:1;overflow-y:auto;background:var(--bgwrap);display:flex;justify-content:center;padding:40px 20px;}
+  #page{width:100%;background:var(--page);box-shadow:var(--pageshadow);border-radius:4px;transition:max-width 0.2s,padding 0.2s;}
+  #page.m-narrow{max-width:680px;padding:40px 48px;}
+  #page.m-normal{max-width:860px;padding:48px 72px;}
+  #page.m-wide{max-width:1040px;padding:48px 96px;}
+
+  /* the actual rich text editor */
+  #editor{min-height:70vh;outline:none;font-size:1.05rem;line-height:1.8;color:var(--text);caret-color:var(--accent);}
+  #editor:empty:before{content:'Start typing…';color:var(--faint);pointer-events:none;}
+
+  /* sidebar */
+  #sidebar{width:200px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+  #sidebar h3{padding:10px 14px;font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);}
+  #user-list{flex:1;overflow-y:auto;padding:6px 0;}
+  .user-item{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:0.85rem;}
+  .user-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .user-role{font-size:0.7rem;color:var(--muted);margin-left:auto;}
+
+  /* file list */
+  #file-list{border-top:1px solid var(--border);padding:6px 0;max-height:160px;overflow-y:auto;}
+  #file-list h3{padding:8px 14px;font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+  .file-item{padding:5px 14px;font-size:0.83rem;cursor:pointer;border-radius:4px;margin:1px 6px;}
+  .file-item:hover{background:var(--border);}
+  .file-item.active-doc{background:var(--accent);color:var(--bg);}
+  #new-doc-row{display:flex;gap:4px;padding:4px 8px;}
+  #new-doc-input{flex:1;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.8rem;}
+  #new-doc-btn{padding:4px 8px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);cursor:pointer;font-size:0.8rem;}
+
+  /* statusbar */
+  #statusbar{background:var(--bg3);border-top:1px solid var(--border);padding:4px 16px;font-size:0.77rem;color:var(--muted);display:flex;gap:18px;align-items:center;}
+  #statusbar b{color:var(--text);}
+  #conn-dot{width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;margin-right:4px;}
+  #conn-dot.on{background:var(--green);}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <h1>✦ CollabEdit</h1>
+    <p>Real-time collaborative rich text editor</p>
+    <input id="inp-user" type="text" placeholder="Username" autocomplete="off">
+    <input id="inp-pass" type="password" placeholder="Password">
+    <button onclick="doLogin()">Sign In</button>
+    <div id="login-error"></div>
+    <p class="login-hint">alice/alice123 · bob/bob123 · carol/carol123 (viewer) · admin/admin123</p>
+  </div>
+</div>
+
+<div id="editor-shell">
+  <div id="toolbar">
+    <span style="font-weight:700;color:var(--accent);margin-right:6px;" id="doc-title">untitled</span>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" id="btn-bold"      onmousedown="e=>e.preventDefault()" onclick="fmt('bold')"           title="Bold Ctrl+B"><b>B</b></button>
+    <button class="tb-btn" id="btn-italic"    onclick="fmt('italic')"         title="Italic Ctrl+I"><i>I</i></button>
+    <button class="tb-btn" id="btn-underline" onclick="fmt('underline')"      title="Underline Ctrl+U"><u>U</u></button>
+    <button class="tb-btn" id="btn-strike"    onclick="fmt('strikeThrough')"  title="Strikethrough"><s>S</s></button>
+    <div class="tb-sep"></div>
+    <select class="tb-btn" onchange="fmt('fontSize',this.value);this.selectedIndex=0;" title="Font size">
+      <option value="">Size</option>
+      <option value="1">Small</option>
+      <option value="3">Normal</option>
+      <option value="5">Large</option>
+      <option value="7">Huge</option>
+    </select>
+    <select class="tb-btn" onchange="fmt('foreColor',this.value);this.selectedIndex=0;" title="Color">
+      <option value="">Color</option>
+      <option value="#f38ba8">Red</option>
+      <option value="#a6e3a1">Green</option>
+      <option value="#89b4fa">Blue</option>
+      <option value="#f9e2af">Yellow</option>
+      <option value="#cba6f7">Purple</option>
+    </select>
+    <select class="tb-btn" onchange="setMargin(this.value)" title="Margins">
+      <option value="m-normal">Margins: Normal</option>
+      <option value="m-narrow">Margins: Narrow</option>
+      <option value="m-wide">Margins: Wide</option>
+    </select>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" onclick="toggleTheme()" id="theme-btn">☀️ Light</button>
+    <button class="tb-btn" id="lock-btn" onclick="toggleLock()">🔓 Lock</button>
+    <button class="tb-btn" onclick="saveDoc()">💾 Save</button>
+    <button class="tb-btn" onclick="exportTxt()">⬇ Export</button>
+    <span id="save-status"></span>
+  </div>
+
+  <div id="main-area">
+    <div id="editor-wrap">
+      <div id="page" class="m-normal">
+        <div id="editor" contenteditable="true" spellcheck="true"></div>
+      </div>
+    </div>
+    <div id="sidebar">
+      <h3>Online Users</h3>
+      <div id="user-list"></div>
+      <div id="file-list">
+        <h3>Documents</h3>
+        <div id="doc-items"></div>
+        <div id="new-doc-row">
+          <input id="new-doc-input" placeholder="New doc name…">
+          <button id="new-doc-btn" onclick="createDoc()">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="statusbar">
+    <span><span id="conn-dot"></span><span id="conn-label">Disconnected</span></span>
+    <span>Words: <b id="st-words">0</b></span>
+    <span>Chars: <b id="st-chars">0</b></span>
+    <span>Lines: <b id="st-lines">0</b></span>
+    <span>Users: <b id="st-users">0</b></span>
+    <span id="st-lock"></span>
+  </div>
+</div>
+
+<script>
+let ws, myUsername, myRole;
+let hasLock=false, lockHolder='';
+let applyingRemote=false, pingInterval;
+let currentDoc='untitled';
+let docContent='';
+
+const COLORS=['#89b4fa','#a6e3a1','#f9e2af','#fab387','#f38ba8','#cba6f7','#94e2d5'];
+const userColors={};
+function colorFor(u){if(!userColors[u])userColors[u]=COLORS[Object.keys(userColors).length%COLORS.length];return userColors[u];}
+
+// theme
+let theme=localStorage.getItem('ce-theme')||'dark';
+applyTheme(theme);
+function applyTheme(t){
+  theme=t;
+  document.documentElement.setAttribute('data-theme',t);
+  const btn=document.getElementById('theme-btn');
+  if(btn) btn.textContent=t==='dark'?'☀️ Light':'🌙 Dark';
+  localStorage.setItem('ce-theme',t);
+}
+function toggleTheme(){applyTheme(theme==='dark'?'light':'dark');}
+
+function setMargin(v){document.getElementById('page').className=v;}
+
+// login
+function doLogin(){
+  const user=document.getElementById('inp-user').value.trim();
+  const pass=document.getElementById('inp-pass').value;
+  if(!user||!pass) return;
+  document.getElementById('login-error').textContent='';
+  const proto=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen=()=>send({type:'auth_req',username:user,password:pass});
+  ws.onmessage=e=>handle(JSON.parse(e.data));
+  ws.onclose=()=>{setConn(false);clearInterval(pingInterval);};
+  ws.onerror=()=>{document.getElementById('login-error').textContent='Connection failed. Is the server running?';};
+}
+document.getElementById('inp-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
+
+// messages
+function handle(msg){
+  switch(msg.type){
+    case 'auth_ok':
+      myUsername=msg.username; myRole=msg.role;
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('editor-shell').style.display='flex';
+      setConn(true);
+      if(myRole==='viewer'){editor.contentEditable='false';editor.style.opacity='0.7';}
+      pingInterval=setInterval(()=>send({type:'ping'}),20000);
+      break;
+    case 'auth_fail':
+      document.getElementById('login-error').textContent=msg.msg||'Invalid credentials'; break;
+    case 'doc_state':
+      currentDoc=msg.name||'untitled';
+      document.getElementById('doc-title').textContent=currentDoc;
+      docContent=msg.content||'';
+      applyingRemote=true;
+      editor.innerHTML=docContent;
+      applyingRemote=false;
+      lockHolder=msg.lock_holder||''; updateLockUI(); updateStats(msg); break;
+    case 'doc_list': renderDocList(msg.docs); break;
+    case 'edit':     applyRemoteEdit(msg); break;
+    case 'presence': renderUsers(msg.users); break;
+    case 'stats':    updateStats(msg); break;
+    case 'lock_ok':  hasLock=true; lockHolder=myUsername; updateLockUI(); break;
+    case 'lock_deny':hasLock=false;lockHolder=msg.holder;updateLockUI();showStatus(`🔒 Locked by ${msg.holder}`,'var(--orange)');break;
+    case 'unlock':   if(lockHolder!==myUsername){lockHolder='';updateLockUI();} break;
+    case 'saved':    showStatus(`✓ Saved`,'var(--green)'); break;
+    case 'error':    showStatus(`✗ ${msg.msg}`,'var(--red)'); break;
+  }
+}
+
+// editor
+const editor=document.getElementById('editor');
+
+editor.addEventListener('input',()=>{
+  if(applyingRemote) return;
+  const next=editor.innerHTML;
+  const ops=diffStrings(docContent,next);
+  docContent=next;
+  ops.forEach(op=>send({type:'edit',op:op.op,pos:op.pos,text:op.text||'',len:op.len||0}));
+  sendCursor();
+});
+editor.addEventListener('keyup',sendCursor);
+editor.addEventListener('mouseup',sendCursor);
+
+function diffStrings(prev,next){
+  let s=0;
+  while(s<prev.length&&s<next.length&&prev[s]===next[s]) s++;
+  let pe=prev.length,ne=next.length;
+  while(pe>s&&ne>s&&prev[pe-1]===next[ne-1]){pe--;ne--;}
+  const ops=[];
+  if(pe-s>0) ops.push({op:'delete',pos:s,len:pe-s});
+  if(ne-s>0) ops.push({op:'insert',pos:s,text:next.slice(s,ne)});
+  return ops;
+}
+
+function applyRemoteEdit(msg){
+  applyingRemote=true;
+  if(msg.op==='insert') docContent=docContent.slice(0,msg.pos)+msg.text+docContent.slice(msg.pos);
+  else if(msg.op==='delete') docContent=docContent.slice(0,msg.pos)+docContent.slice(msg.pos+msg.len);
+  editor.innerHTML=docContent;
+  applyingRemote=false;
+}
+
+function sendCursor(){send({type:'cursor',pos:0});}
+
+// formatting — uses execCommand which actually works on contenteditable
+function fmt(cmd,val){
+  editor.focus();
+  document.execCommand(cmd,false,val||null);
+  updateToolbar();
+}
+
+editor.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey){
+    if(e.key==='b'){e.preventDefault();fmt('bold');}
+    if(e.key==='i'){e.preventDefault();fmt('italic');}
+    if(e.key==='u'){e.preventDefault();fmt('underline');}
+    if(e.key==='s'){e.preventDefault();saveDoc();}
+  }
+});
+editor.addEventListener('keyup',updateToolbar);
+editor.addEventListener('mouseup',updateToolbar);
+
+function updateToolbar(){
+  document.getElementById('btn-bold').classList.toggle('active',document.queryCommandState('bold'));
+  document.getElementById('btn-italic').classList.toggle('active',document.queryCommandState('italic'));
+  document.getElementById('btn-underline').classList.toggle('active',document.queryCommandState('underline'));
+  document.getElementById('btn-strike').classList.toggle('active',document.queryCommandState('strikeThrough'));
+}
+
+// docs
+function renderDocList(docs){
+  const el=document.getElementById('doc-items');
+  el.innerHTML='';
+  (docs||[]).forEach(d=>{
+    const div=document.createElement('div');
+    div.className='file-item'+(d.name===currentDoc?' active-doc':'');
+    div.textContent=d.name;
+    div.onclick=()=>send({type:'switch_doc',name:d.name});
+    el.appendChild(div);
+  });
+}
+
+function createDoc(){
+  const inp=document.getElementById('new-doc-input');
+  const name=inp.value.trim();
+  if(!name) return;
+  inp.value='';
+  send({type:'switch_doc',name});
+}
+
+// lock
+function toggleLock(){
+  if(hasLock){send({type:'unlock'});hasLock=false;lockHolder='';updateLockUI();}
+  else send({type:'lock_req'});
+}
+function updateLockUI(){
+  const btn=document.getElementById('lock-btn');
+  const st=document.getElementById('st-lock');
+  btn.className='tb-btn';
+  if(hasLock){btn.textContent='🔒 Unlock';btn.classList.add('locked');st.textContent='🔒 You hold the lock';}
+  else if(lockHolder){btn.textContent=`🔒 ${lockHolder}`;btn.classList.add('locked-other');st.textContent=`🔒 Locked by ${lockHolder}`;}
+  else{btn.textContent='🔓 Lock';st.textContent='';}
+}
+
+function saveDoc(){send({type:'save'});}
+
+function exportTxt(){
+  const blob=new Blob([editor.innerText],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=currentDoc+'.txt';
+  a.click();
+}
+
+function showStatus(msg,color){
+  const el=document.getElementById('save-status');
+  el.textContent=msg;el.style.color=color;
+  setTimeout(()=>el.textContent='',3000);
+}
+
+function renderUsers(users){
+  const list=document.getElementById('user-list');
+  list.innerHTML='';
+  document.getElementById('st-users').textContent=users.length;
+  users.forEach(u=>{
+    const div=document.createElement('div');
+    div.className='user-item';
+    div.innerHTML=`<span class="user-dot" style="background:${colorFor(u.username)}"></span>`+
+      `<span>${u.username}${u.username===myUsername?' <em style="opacity:.5">(you)</em>':''}</span>`+
+      `<span class="user-role">${u.role}</span>`;
+    list.appendChild(div);
+  });
+}
+
+function updateStats(msg){
+  if(msg.words!==undefined) document.getElementById('st-words').textContent=msg.words;
+  if(msg.chars!==undefined) document.getElementById('st-chars').textContent=msg.chars;
+  if(msg.lines!==undefined) document.getElementById('st-lines').textContent=msg.lines;
+  if(msg.online!==undefined) document.getElementById('st-users').textContent=msg.online;
+  if(msg.lock_holder!==undefined){lockHolder=msg.lock_holder;if(lockHolder!==myUsername)hasLock=false;updateLockUI();}
+}
+
+function setConn(on){
+  document.getElementById('conn-dot').className=on?'on':'';
+  document.getElementById('conn-label').textContent=on?'Connected':'Disconnected';
+}
+</script>
+</body>
+</html>
